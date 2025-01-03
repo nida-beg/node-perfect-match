@@ -35,10 +35,10 @@ exports.logIn = (req, res) => {
     const emailId = req.body.email;
     const password = req.body.password;
     User.findOne({ email: emailId })
-        .then(data => {
+        .then(async data => {
 
             if (data) {
-                const isMatched = bcrypt.compare(password, data.password)
+                const isMatched = await bcrypt.compare(password, data.password)
                 if (isMatched) {
                     const token = jwt.sign({ user: data }, 'your-secret-key', { expiresIn: '1h' })
                     const response = {
