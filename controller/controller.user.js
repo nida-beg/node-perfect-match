@@ -5,12 +5,17 @@ const { EduInfo } = require("../models/eduInfo.model");
 const { PersonalInfo } = require("../models/personalInfo.model");
 const { User } = require("../models/user.model");
 const bcrypt = require("bcrypt")
-exports.register = (req, res) => {
+
+
+
+
+
+exports.register = async (req, res) => {
     if (!req.body.name) {
         res.status(400).send({ message: "name cannot be empty" })
         return;
     }
-    const hashPassword = bcrypt.hash(req.body.password, 10)
+    const hashPassword = await bcrypt.hash(req.body.password, 10)
     const user = User({
         name: req.body.name,
         email: req.body.email,
@@ -19,6 +24,7 @@ exports.register = (req, res) => {
         password: hashPassword
 
     })
+    console.log("user::", req.body)
     user
         .save(user)
         .then(data => {
@@ -26,9 +32,18 @@ exports.register = (req, res) => {
             res.send({ message: "you have registered sucessfully", data: data })
         })
         .catch(err => {
-            res.status(500).send({
-                message: err.message || "some error occured"
-            })
+            console.log('err.code', err.code)
+            if (err.code === 11000) {
+                console.log("Nida is here")
+                res.status(500).send({
+                    message: "User with same Email is already exist"
+                })
+
+            } else {
+                res.status(500).send({
+                    message: err.message || "some error occured"
+                })
+            }
         })
 }
 exports.logIn = (req, res) => {
@@ -96,21 +111,25 @@ exports.saveEduInfo = (req, res) => {
 }
 
 exports.getEduInfo = (req, res) => {
-    const uId = req.user._id
-    EduInfo
-        .find({ userId: uId })
-        .populate([
-            { path: "userId", select: ["name", "email"] }
-        ])
-        .then(data => {
-            res.send({ message: "information found successfully..", eduData: data })
+    setTimeout(() => {
+        const uId = req.user._id
+        EduInfo
+            .find({ userId: uId })
+            .populate([
+                { path: "userId", select: ["name", "email"] }
+            ])
+            .then(data => {
+                res.send({ message: "information found successfully..", eduData: data })
 
-        })
-        .catch(err => {
-            res.status(500).send(
-                { message: err.message || "some error occured" }
-            )
-        })
+            })
+            .catch(err => {
+                res.status(500).send(
+                    { message: err.message || "some error occured" }
+                )
+            })
+
+    }, 5000);
+
 }
 
 exports.savePersonalInfo = (req, res) => {
@@ -126,7 +145,7 @@ exports.savePersonalInfo = (req, res) => {
         motherName: req.body.motherName,
         address: req.body.address,
         gender: req.body.gender,
-        userId: req.body.userId
+        userId: req.user._id
 
 
     })
@@ -141,4 +160,69 @@ exports.savePersonalInfo = (req, res) => {
             })
         })
 }
+exports.getPersonalInfo = (req, res) => {
+    const userId = req.user._id
+    console.log("userId::", userId)
+    PersonalInfo.findOne({ userId: userId })
 
+        .then(data => {
+            console.log("data::", data)
+            res.send({ message: "info retrieved", personalInfo: data })
+
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: err.message || "some error occured"
+            })
+        })
+}
+exports.updatePersonalInfo = (req, res) => {
+    const userId = req.user._id
+    const personalInfo = req.body
+    PersonalInfo.updateOne({ userId: userId }, personalInfo)
+        .then(data => {
+            res.send({ message: "updated Successfully", data: data })
+        })
+        .catch(err => {
+
+            res.status(500).send({
+                message: err.message || "some error occured"
+            })
+
+        })
+}
+exports.editProfilePic = async (req, res) => {
+    if (!req.file) {
+        res.status(400).send({ message: "You haven't upload any file" })
+        return
+    }
+    const imageUpdate = { profilePic: req.file.path }
+    User
+        .updateOne({ _id: req.user._id }, imageUpdate)
+        .then((data) => {
+
+            res.send({ message: "image upload successfully", data: data })
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: err.message || "some error occured"
+            })
+        })
+
+
+}
+exports.getProfile = (req, res) => {
+    const userId = req.user._id
+
+    User
+        .findOne({ _id: userId })
+        .select({ "name": 1, "email": 1, "city": 1, "profilePic": 1, "_id": 0 })
+        .then((data) => {
+            res.send({ message: "info Retrieved", data: data })
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: err.message || "some error occured"
+            })
+        })
+}

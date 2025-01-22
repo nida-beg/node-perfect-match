@@ -2,7 +2,7 @@ const mongoose = require("mongoose")
 const schema = mongoose.Schema(
     {
         name: String,
-        email: String,
+        email: { type: String, unique: true, require: true },
         phoneNo: String,
         fatherName: String,
         motherName: String,
