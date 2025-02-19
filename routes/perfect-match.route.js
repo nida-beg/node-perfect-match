@@ -1,7 +1,11 @@
 const verifyToken = require("../helper/auth-helper.js");
 const multer = require("multer");
 
+const userController = require("../controller/controller.user.js");
+let router = require("express").Router();
+
 module.exports = app => {
+
 
     const storage = multer.diskStorage({
         destination: (req, file, cb) => {
@@ -13,18 +17,18 @@ module.exports = app => {
             cb(null, Date.now() + "-" + file.originalname)
         },
     })
-
     const uploadStorage = multer({ storage: storage })
-    const user = require("../controller/controller.user.js");
-    let router = require("express").Router();
-    router.post("/", user.register);
-    router.post("/logIn", user.logIn);
-    router.post("/eduInfo", verifyToken, user.saveEduInfo);
-    router.get("/", verifyToken, user.getEduInfo);
-    router.post("/personalInfo", verifyToken, user.savePersonalInfo);
-    router.get("/personalInfo", verifyToken, user.getPersonalInfo);
-    router.put("/personalInfo", verifyToken, user.updatePersonalInfo);
-    router.post("/upload/single", verifyToken, uploadStorage.single("file"), user.editProfilePic);
-    router.get("/getProfile", verifyToken, user.getProfile);
+
+    router.post("/", userController.register);
+    router.post("/logIn", userController.logIn);
+    router.post("/eduInfo", verifyToken, userController.saveEduInfo);
+    router.get("/", verifyToken, userController.getEduInfo);
+    router.post("/personalInfo", verifyToken, userController.savePersonalInfo);
+    router.get("/personalInfo", verifyToken, userController.getPersonalInfo);
+    router.put("/personalInfo", verifyToken, userController.updatePersonalInfo);
+    router.post("/upload/single", verifyToken, uploadStorage.single("file"), userController.editProfilePic);
+    router.get("/getProfile", verifyToken, userController.getProfile);
+    router.put("/updateProfile", verifyToken, userController.updateProfile),
+        router.get("/getUser", verifyToken, userController.getUser)
     app.use('/api/perfect-match', router);
 }

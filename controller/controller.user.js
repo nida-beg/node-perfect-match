@@ -5,7 +5,7 @@ const { EduInfo } = require("../models/eduInfo.model");
 const { PersonalInfo } = require("../models/personalInfo.model");
 const { User } = require("../models/user.model");
 const bcrypt = require("bcrypt")
-
+const { unlink } = require('node:fs/promises');
 
 
 
@@ -47,13 +47,21 @@ exports.register = async (req, res) => {
         })
 }
 exports.logIn = (req, res) => {
+    console.log('in login::::', req.body)
     const emailId = req.body.email;
     const password = req.body.password;
     User.findOne({ email: emailId })
+
+
         .then(async data => {
 
+
             if (data) {
-                const isMatched = await bcrypt.compare(password, data.password)
+
+
+
+                const isMatched = await bcrypt.compare(password, data.password);
+                console.log('...data::::::', isMatched)
                 if (isMatched) {
                     const token = jwt.sign({ user: data }, 'your-secret-key', { expiresIn: '1h' })
                     const response = {
@@ -61,6 +69,7 @@ exports.logIn = (req, res) => {
                         email: data.email,
                         creating_for: data.creatingFor,
                         city: data.city,
+                        profilePic: data.profilePic,
                         password: data.password,
                         token: token
 
@@ -161,8 +170,9 @@ exports.savePersonalInfo = (req, res) => {
         })
 }
 exports.getPersonalInfo = (req, res) => {
+    console.log("userId::", req.user._id)
     const userId = req.user._id
-    console.log("userId::", userId)
+
     PersonalInfo.findOne({ userId: userId })
 
         .then(data => {
@@ -197,11 +207,21 @@ exports.editProfilePic = async (req, res) => {
         return
     }
     const imageUpdate = { profilePic: req.file.path }
+    const existingUser = await User.findOne({ _id: req.user._id })
     User
         .updateOne({ _id: req.user._id }, imageUpdate)
-        .then((data) => {
+        .then(async (data) => {
+            console.log("existingUser", existingUser)
+            const path = existingUser.profilePic
 
-            res.send({ message: "image upload successfully", data: data })
+            if (path) {
+                await unlink(path);
+                console.log(`successfully deleted ${path}`);
+            }
+
+
+
+            res.send({ message: "image upload successfully" })
         })
         .catch(err => {
             res.status(500).send({
@@ -210,6 +230,22 @@ exports.editProfilePic = async (req, res) => {
         })
 
 
+}
+
+exports.updateProfile = (req, res) => {
+    const profileInfo = req.body
+    User
+        .updateOne({ _id: req.user._id }, profileInfo)
+        .then((data) => {
+            console.log("data", data)
+            res.send({ message: "record has been updated" })
+        })
+        .catch((err) => {
+            res.status(500).send({
+                message: err.message || "some error occured"
+            })
+
+        })
 }
 exports.getProfile = (req, res) => {
     const userId = req.user._id
@@ -225,4 +261,26 @@ exports.getProfile = (req, res) => {
                 message: err.message || "some error occured"
             })
         })
+}
+exports.getUser = async (req, res) => {
+    const personalInfoData = await PersonalInfo.findOne({ userId: req.user._id })
+    const count = await PersonalInfo.countDocuments({ gender: { $ne: personalInfoData?.gender } })
+    PersonalInfo
+        .find({ gender: { $ne: personalInfoData?.gender } })
+        .limit(req.query.limit).skip(req.query.start)
+        .populate([
+            { path: "userId", select: ["city", "profilePic"] }
+        ])
+        .then((data) => {
+
+            res.send({ message: "info retrieved", data: { users: data, count } })
+
+        })
+        .catch((err) => {
+            res.status(500).send({
+                message: err.message || "some error occured"
+            })
+
+        }
+        )
 }
